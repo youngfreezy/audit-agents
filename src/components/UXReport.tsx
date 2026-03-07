@@ -61,8 +61,8 @@ export function UXReport({ report }: { report: UXRevenueReport }) {
         <p className="text-gray-300">{report.summary}</p>
         <div className="mt-3 flex items-center gap-2">
           <span className="text-sm text-gray-400">UX Score:</span>
-          <span className={"font-mono font-bold " + scoreColor(report.overall_ux_score)}>
-            {report.overall_ux_score.toFixed(1)}/10
+          <span className={"font-mono font-bold " + scoreColor(report.overall_ux_score / 10)}>
+            {report.overall_ux_score.toFixed(0)}/100
           </span>
         </div>
       </div>

@@ -11,9 +11,9 @@ export async function POST(req: NextRequest) {
     const body: AuditRequest = await req.json();
     const { name, urls, description, focusAreas } = body;
 
-    if (!name || !urls?.length) {
+    if (!name || (!urls?.length && !description)) {
       return NextResponse.json(
-        { error: "Name and at least one URL are required" },
+        { error: "Name and at least one URL or description are required" },
         { status: 400 }
       );
     }
@@ -26,7 +26,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const analyses = await Promise.all(urls.map((url) => analyzePage(url)));
+    const analyses = urls?.length
+      ? await Promise.all(urls.map((url) => analyzePage(url)))
+      : [];
 
     const contextParts = ["# Product Under Review: " + name];
     if (description) contextParts.push("\n## Description\n" + description);
