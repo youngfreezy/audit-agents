@@ -66,11 +66,13 @@ async function getBrowser() {
   }
 
   // Vercel/Lambda: use @sparticuz/chromium
+  chromium.setHeadlessMode = true;
+  chromium.setGraphicsMode = false;
   return puppeteer.launch({
     args: chromium.args,
     defaultViewport: { width: 1280, height: 720 },
     executablePath: await chromium.executablePath(),
-    headless: true,
+    headless: chromium.headless,
   });
 }
 
