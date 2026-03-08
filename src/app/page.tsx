@@ -22,6 +22,15 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"arch" | "ux" | "growth">(
     "arch"
   );
+  const [formKey, setFormKey] = useState(0);
+
+  const handleClear = () => {
+    setArchReport(null);
+    setUXReport(null);
+    setGrowthReport(null);
+    setError(null);
+    setFormKey((k) => k + 1);
+  };
 
   const handleSubmit = async (data: {
     name: string;
@@ -125,7 +134,7 @@ export default function Home() {
 
         {/* Form */}
         <div className="max-w-2xl mx-auto mb-12">
-          <AuditForm onSubmit={handleSubmit} loading={loading} />
+          <AuditForm key={formKey} onSubmit={handleSubmit} loading={loading} />
         </div>
 
         {/* Error */}
@@ -138,9 +147,19 @@ export default function Home() {
         {/* Results */}
         {hasResults && (
           <div>
+            {/* Clear Button */}
+            <div className="flex justify-center mb-6">
+              <button
+                onClick={handleClear}
+                className="px-5 py-2 rounded-lg text-sm font-medium bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 border border-gray-700 transition-colors"
+              >
+                Clear & Start Over
+              </button>
+            </div>
+
             {/* Tabs */}
             {tabCount > 1 && (
-              <div className="flex gap-2 mb-8">
+              <div className="flex justify-center gap-2 mb-8">
                 {archReport && (
                   <button
                     onClick={() => setActiveTab("arch")}

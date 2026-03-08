@@ -7,7 +7,7 @@ interface AuditFormProps {
     name: string;
     urls: string[];
     description: string;
-    auditType: "architecture" | "ux-revenue" | "both";
+    auditType: "architecture" | "ux-revenue" | "growth" | "all";
   }) => void;
   loading: boolean;
 }
@@ -16,7 +16,7 @@ export function AuditForm({ onSubmit, loading }: AuditFormProps) {
   const [name, setName] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [description, setDescription] = useState("");
-  const [auditType, setAuditType] = useState<"architecture" | "ux-revenue" | "both">("both");
+  const [auditType, setAuditType] = useState<"architecture" | "ux-revenue" | "growth" | "all">("all");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,11 +77,12 @@ export function AuditForm({ onSubmit, loading }: AuditFormProps) {
         <label className="block text-sm font-medium text-gray-300 mb-3">
           Audit Type
         </label>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { value: "both" as const, label: "Full Audit", desc: "Architecture + UX Revenue" },
+            { value: "all" as const, label: "Full Audit", desc: "All 3 agents" },
             { value: "architecture" as const, label: "Architecture", desc: "Scalability, payments, design" },
             { value: "ux-revenue" as const, label: "UX Revenue", desc: "Will it get paid users?" },
+            { value: "growth" as const, label: "Growth", desc: "Monetization & experiments" },
           ].map((opt) => (
             <button
               key={opt.value}
