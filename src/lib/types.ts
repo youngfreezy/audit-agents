@@ -79,37 +79,35 @@ export interface AuditRequest {
   focusAreas?: string[];
 }
 
-// Growth & Monetization Agent types
-
-export interface GrowthExperiment {
-  hypothesis: string;
-  metric: string;
-  variant_a: string;
-  variant_b: string;
-  expected_impact: string;
-  effort: "low" | "medium" | "high";
+export interface GrowthSignal {
+  signal: string;
+  sentiment: "positive" | "negative" | "neutral";
+  weight: number; // 0-1
+  evidence: string;
 }
 
-export interface MonetizationFinding {
-  element: string;
-  issue: string;
-  impact: "revenue_loss" | "churn_risk" | "conversion_blocker" | "missed_opportunity";
-  fix: string;
+export interface RevenueChannel {
+  channel: string;
+  viability: string;
+  estimated_potential: string;
+  effort: string;
 }
 
 export interface GrowthMonetizationReport {
   summary: string;
   overall_score: number; // 0-100
+  growth_ready: boolean;
+  market_opportunity: ScoreBreakdown;
+  growth_loops: ScoreBreakdown;
+  retention_engagement: ScoreBreakdown;
   monetization_model: ScoreBreakdown;
-  paywall_effectiveness: ScoreBreakdown;
-  pricing_strategy: ScoreBreakdown;
-  conversion_funnel: ScoreBreakdown;
-  retention_signals: ScoreBreakdown;
-  growth_levers: ScoreBreakdown;
-  growth_experiments: GrowthExperiment[];
-  monetization_findings: MonetizationFinding[];
-  quick_wins: string[];
-  growth_playbook: string;
+  competitive_moat: ScoreBreakdown;
+  go_to_market: ScoreBreakdown;
+  growth_signals: GrowthSignal[];
+  revenue_channels: RevenueChannel[];
+  strengths: string[];
+  top_growth_actions: string[];
+  verdict: string;
 }
 
 // PageAnalysis is exported from web-analyzer.ts
