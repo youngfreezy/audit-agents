@@ -7,6 +7,7 @@ interface AuditFormProps {
     name: string;
     urls: string[];
     description: string;
+    codebaseSummary: string;
     auditType: "architecture" | "ux-revenue" | "growth" | "all";
   }) => void;
   loading: boolean;
@@ -16,6 +17,7 @@ export function AuditForm({ onSubmit, loading }: AuditFormProps) {
   const [name, setName] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [description, setDescription] = useState("");
+  const [codebaseSummary, setCodebaseSummary] = useState("");
   const [auditType, setAuditType] = useState<"architecture" | "ux-revenue" | "growth" | "all">("all");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,7 +27,7 @@ export function AuditForm({ onSubmit, loading }: AuditFormProps) {
       .map((u) => u.trim())
       .filter((u) => u.startsWith("http"));
     if (!name || !urls.length) return;
-    onSubmit({ name, urls, description, auditType });
+    onSubmit({ name, urls, description, codebaseSummary, auditType });
   };
 
   return (
@@ -70,6 +72,20 @@ export function AuditForm({ onSubmit, loading }: AuditFormProps) {
           placeholder="Brief description of what the product does, target market, etc."
           rows={2}
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Codebase Summary
+          <span className="text-gray-500 font-normal ml-2">(optional source code context)</span>
+        </label>
+        <textarea
+          value={codebaseSummary}
+          onChange={(e) => setCodebaseSummary(e.target.value)}
+          placeholder="Paste architecture details, key files, database patterns, etc."
+          rows={6}
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
         />
       </div>
 

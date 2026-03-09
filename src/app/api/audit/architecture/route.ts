@@ -9,7 +9,7 @@ export const maxDuration = 120;
 export async function POST(req: NextRequest) {
   try {
     const body: AuditRequest = await req.json();
-    const { name, urls, description, focusAreas } = body;
+    const { name, urls, description, focusAreas, codebase_summary } = body;
 
     if (!name || (!urls?.length && !description)) {
       return NextResponse.json(
@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
       contextParts.push(
         "\n## Focus Areas\n" + focusAreas.map((a) => "- " + a).join("\n")
       );
+    if (codebase_summary)
+      contextParts.push("\n## Codebase Summary\n" + codebase_summary);
     for (const a of analyses) {
       contextParts.push("\n" + formatAnalysisForLLM(a));
     }

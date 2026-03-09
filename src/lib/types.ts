@@ -77,6 +77,7 @@ export interface AuditRequest {
   urls: string[];
   description?: string;
   focusAreas?: string[];
+  codebase_summary?: string;
 }
 
 export interface GrowthSignal {

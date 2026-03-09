@@ -36,6 +36,7 @@ export default function Home() {
     name: string;
     urls: string[];
     description: string;
+    codebaseSummary: string;
     auditType: "architecture" | "ux-revenue" | "growth" | "all";
   }) => {
     setLoading(true);
@@ -48,6 +49,7 @@ export default function Home() {
       name: data.name,
       urls: data.urls,
       description: data.description || undefined,
+      codebase_summary: data.codebaseSummary || undefined,
     };
 
     try {
