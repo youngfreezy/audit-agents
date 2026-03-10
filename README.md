@@ -1,8 +1,8 @@
-# Audit Agents
+# Audit Agents (Prism)
 
-AI-powered architectural review and revenue viability analysis. Paste any URL and get a comprehensive audit in 60 seconds.
+AI-powered product analysis. Paste any URL and get a comprehensive audit in 60 seconds.
 
-## Two Agents
+## Three Agents
 
 ### 1. Architectural Audit Agent
 Scores your product on 6 dimensions (0-10 each):
@@ -22,15 +22,14 @@ Delivers a YES/NO verdict on whether your product will get paid users:
 - **Trust Signals** - Would you give it your credit card?
 - **User Experience** - Is it good to use?
 
-Plus competitor benchmarks, revenue signals, and top 5 improvements.
-
-## Validated Against
-
-| Product | UX Verdict | UX Score | Arch Score |
-|---------|-----------|----------|------------|
-| Netflix | YES (100%) | 9.5/10 | - |
-| Notion | YES (95%) | 8.7/10 | - |
-| Linear | - | - | 8.4/10 |
+### 3. Growth & Monetization Agent
+Analyzes growth potential and monetization strategy across 6 dimensions (0-10 each):
+- **Market Opportunity** - TAM, timing, underserved segments
+- **Growth Engine** - Viral loops, acquisition channels, retention
+- **Monetization Model** - Pricing, willingness to pay, LTV
+- **Competitive Moat** - Defensibility, switching costs, network effects
+- **Go-to-Market** - Distribution, partnerships, content strategy
+- **Unit Economics** - CAC, margins, path to profitability
 
 ## Quick Start
 
@@ -70,6 +69,7 @@ Add `ANTHROPIC_API_KEY` as an environment variable in your Vercel project settin
 ```
 POST /api/audit/architecture  - Run architectural audit
 POST /api/audit/ux-revenue    - Run UX revenue verdict
+POST /api/audit/growth        - Run growth & monetization audit
 ```
 
 Request body:
