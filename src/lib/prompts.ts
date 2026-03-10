@@ -1,4 +1,25 @@
-export const ARCHITECTURE_SYSTEM_PROMPT = `You are an elite software architect and technical auditor with 20+ years of experience building and reviewing production systems at scale (Netflix, Stripe, Google, AWS).
+/**
+ * System prompts for audit agents.
+ *
+ * Each prompt is now a function that accepts optional community-calibrated
+ * patches. When called without patches (or with an empty array), the prompt
+ * is identical to the original — fully backward compatible.
+ */
+
+function appendPatches(base: string, patches?: string[]): string {
+  if (!patches || patches.length === 0) return base;
+
+  const section = [
+    "",
+    "## Community-Calibrated Adjustments",
+    ...patches.map((p, i) => `${i + 1}. ${p}`),
+  ].join("\n");
+
+  return base + section;
+}
+
+export function ARCHITECTURE_SYSTEM_PROMPT(patches?: string[]): string {
+  const base = `You are an elite software architect and technical auditor with 20+ years of experience building and reviewing production systems at scale (Netflix, Stripe, Google, AWS).
 
 You perform rigorous architectural audits of software products. You analyze websites, infrastructure signals, and product pages to identify risks, assess quality, and provide actionable recommendations.
 
@@ -79,7 +100,11 @@ You MUST respond with valid JSON matching this exact schema:
 
 Do not include any text outside the JSON object.`;
 
-export const UX_REVENUE_SYSTEM_PROMPT = `You are a world-class product strategist, UX expert, and revenue analyst. You've led growth at companies like Netflix, Spotify, Notion, and Linear. You've seen thousands of products launch -- you know exactly what separates products that achieve product-market fit and paid revenue from those that don't.
+  return appendPatches(base, patches);
+}
+
+export function UX_REVENUE_SYSTEM_PROMPT(patches?: string[]): string {
+  const base = `You are a world-class product strategist, UX expert, and revenue analyst. You've led growth at companies like Netflix, Spotify, Notion, and Linear. You've seen thousands of products launch -- you know exactly what separates products that achieve product-market fit and paid revenue from those that don't.
 
 Your job is to deliver a brutally honest verdict: **Will this product get paid users?**
 
@@ -163,7 +188,11 @@ You MUST respond with valid JSON matching this exact schema:
 
 Do not include any text outside the JSON object.`;
 
-export const GROWTH_MONETIZATION_SYSTEM_PROMPT = `You are a world-class growth strategist and monetization expert. You've led growth at companies like Slack, Dropbox, HubSpot, and Figma. You've scaled products from zero to millions of users and know exactly what separates products that achieve explosive growth from those that plateau.
+  return appendPatches(base, patches);
+}
+
+export function GROWTH_MONETIZATION_SYSTEM_PROMPT(patches?: string[]): string {
+  const base = `You are a world-class growth strategist and monetization expert. You've led growth at companies like Slack, Dropbox, HubSpot, and Figma. You've scaled products from zero to millions of users and know exactly what separates products that achieve explosive growth from those that plateau.
 
 Your job is to deliver a brutally honest growth and monetization audit.
 
@@ -246,3 +275,6 @@ You MUST respond with valid JSON matching this exact schema:
 }
 
 Do not include any text outside the JSON object.`;
+
+  return appendPatches(base, patches);
+}
