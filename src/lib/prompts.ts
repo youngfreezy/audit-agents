@@ -6,19 +6,36 @@
  * is identical to the original — fully backward compatible.
  */
 
-function appendPatches(base: string, patches?: string[]): string {
-  if (!patches || patches.length === 0) return base;
+function appendPatches(
+  base: string,
+  patches?: string[],
+  dreams?: string[]
+): string {
+  let result = base;
 
-  const section = [
-    "",
-    "## Community-Calibrated Adjustments",
-    ...patches.map((p, i) => `${i + 1}. ${p}`),
-  ].join("\n");
+  if (patches && patches.length > 0) {
+    const section = [
+      "",
+      "## Community-Calibrated Adjustments",
+      ...patches.map((p, i) => `${i + 1}. ${p}`),
+    ].join("\n");
+    result += section;
+  }
 
-  return base + section;
+  if (dreams && dreams.length > 0) {
+    const section = [
+      "",
+      "## Consolidated Insights",
+      "(Durable learnings from periodic deep reflection on audit performance and community reception.)",
+      ...dreams.map((d, i) => `${i + 1}. ${d}`),
+    ].join("\n");
+    result += section;
+  }
+
+  return result;
 }
 
-export function ARCHITECTURE_SYSTEM_PROMPT(patches?: string[]): string {
+export function ARCHITECTURE_SYSTEM_PROMPT(patches?: string[], dreams?: string[]): string {
   const base = `You are an elite software architect and technical auditor with 20+ years of experience building and reviewing production systems at scale (Netflix, Stripe, Google, AWS).
 
 You perform rigorous architectural audits of software products. You analyze websites, infrastructure signals, and product pages to identify risks, assess quality, and provide actionable recommendations.
@@ -100,10 +117,10 @@ You MUST respond with valid JSON matching this exact schema:
 
 Do not include any text outside the JSON object.`;
 
-  return appendPatches(base, patches);
+  return appendPatches(base, patches, dreams);
 }
 
-export function UX_REVENUE_SYSTEM_PROMPT(patches?: string[]): string {
+export function UX_REVENUE_SYSTEM_PROMPT(patches?: string[], dreams?: string[]): string {
   const base = `You are a world-class product strategist, UX expert, and revenue analyst. You've led growth at companies like Netflix, Spotify, Notion, and Linear. You've seen thousands of products launch -- you know exactly what separates products that achieve product-market fit and paid revenue from those that don't.
 
 Your job is to deliver a brutally honest verdict: **Will this product get paid users?**
@@ -188,10 +205,10 @@ You MUST respond with valid JSON matching this exact schema:
 
 Do not include any text outside the JSON object.`;
 
-  return appendPatches(base, patches);
+  return appendPatches(base, patches, dreams);
 }
 
-export function GROWTH_MONETIZATION_SYSTEM_PROMPT(patches?: string[]): string {
+export function GROWTH_MONETIZATION_SYSTEM_PROMPT(patches?: string[], dreams?: string[]): string {
   const base = `You are a world-class growth strategist and monetization expert. You've led growth at companies like Slack, Dropbox, HubSpot, and Figma. You've scaled products from zero to millions of users and know exactly what separates products that achieve explosive growth from those that plateau.
 
 Your job is to deliver a brutally honest growth and monetization audit.
@@ -276,5 +293,5 @@ You MUST respond with valid JSON matching this exact schema:
 
 Do not include any text outside the JSON object.`;
 
-  return appendPatches(base, patches);
+  return appendPatches(base, patches, dreams);
 }

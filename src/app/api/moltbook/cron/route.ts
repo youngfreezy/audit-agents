@@ -29,12 +29,14 @@ import {
 } from "@/lib/moltbook-client";
 import {
   loadMemory,
+  saveMemory,
   addAuditRecord,
   updateEngagement,
   addPromptPatch,
   getPromptPatches,
   getRecentAuditRecords,
 } from "@/lib/memory";
+import { runDreamCycle, getDreamInsights } from "@/lib/dream";
 import type {
   ArchitecturalAuditReport,
   UXRevenueReport,
@@ -96,13 +98,14 @@ function pickAuditType(): AuditType {
 
 function getSystemPrompt(auditType: AuditType): string {
   const patches = getPromptPatches();
+  const dreams = getDreamInsights();
   switch (auditType) {
     case "architecture":
-      return ARCHITECTURE_SYSTEM_PROMPT(patches);
+      return ARCHITECTURE_SYSTEM_PROMPT(patches, dreams);
     case "ux-revenue":
-      return UX_REVENUE_SYSTEM_PROMPT(patches);
+      return UX_REVENUE_SYSTEM_PROMPT(patches, dreams);
     case "growth":
-      return GROWTH_MONETIZATION_SYSTEM_PROMPT(patches);
+      return GROWTH_MONETIZATION_SYSTEM_PROMPT(patches, dreams);
   }
 }
 
@@ -405,9 +408,29 @@ export async function GET(req: Request): Promise<NextResponse> {
       // Still update engagement on recent posts
       await updateRecentEngagement();
       await maybeGeneratePromptPatch();
+
+      // Track cycle count even when no URLs to audit
+      const noUrlMemory = loadMemory();
+      const noUrlCycle = (noUrlMemory.cycleCount || 0) + 1;
+      noUrlMemory.cycleCount = noUrlCycle;
+      saveMemory(noUrlMemory);
+
+      let dreamed = false;
+      if (noUrlCycle % 5 === 0) {
+        console.log("[cron] Cycle %d — entering dream cycle (no-URL path)...", noUrlCycle);
+        try {
+          await runDreamCycle();
+          dreamed = true;
+        } catch (dreamErr) {
+          console.error("[cron] Dream cycle failed:", dreamErr);
+        }
+      }
+
       return NextResponse.json({
         status: "no_new_urls",
         message: "No new URLs found in feed to audit",
+        cycle: noUrlCycle,
+        dreamed,
       });
     }
 
@@ -449,12 +472,33 @@ export async function GET(req: Request): Promise<NextResponse> {
     // 7. Maybe generate prompt patch from accumulated feedback
     await maybeGeneratePromptPatch();
 
+    // 8. Track cycle count and trigger dream cycle every 5th cycle
+    const currentMemory = loadMemory();
+    const cycleCount = (currentMemory.cycleCount || 0) + 1;
+    currentMemory.cycleCount = cycleCount;
+    saveMemory(currentMemory);
+
+    let dreamed = false;
+    if (cycleCount % 5 === 0) {
+      console.log("[cron] Cycle %d — entering dream cycle (sleep-time compute)...", cycleCount);
+      try {
+        await runDreamCycle();
+        dreamed = true;
+        console.log("[cron] Dream cycle complete");
+      } catch (dreamErr) {
+        const dreamMsg = dreamErr instanceof Error ? dreamErr.message : String(dreamErr);
+        console.error("[cron] Dream cycle failed:", dreamMsg);
+      }
+    }
+
     return NextResponse.json({
       status: "success",
       url: targetUrl,
       auditType,
       score,
       postId: post.id,
+      cycle: cycleCount,
+      dreamed,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

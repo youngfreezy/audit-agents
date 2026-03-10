@@ -44,10 +44,18 @@ export interface DiscoveryPreferences {
   avoidPatterns: string[];
 }
 
+export interface DreamEntry {
+  id: string;
+  insights: string[];
+  createdAt: string;
+}
+
 export interface MemoryData {
   auditRecords: AuditRecord[];
   promptPatches: PromptPatch[];
   discoveryPreferences: DiscoveryPreferences;
+  dreamLog?: DreamEntry[];
+  cycleCount?: number;
   lastUpdated: string;
 }
 
