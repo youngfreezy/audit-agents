@@ -21,8 +21,6 @@ import {
   getRecentAuditRecords,
   getPromptPatches,
   type MemoryData,
-  type AuditRecord,
-  type PromptPatch,
 } from "@/lib/memory";
 
 const MAX_DREAM_LOGS = 10;
@@ -47,8 +45,8 @@ export async function runDreamCycle(): Promise<void> {
     return;
   }
 
-  const memory = loadMemory();
-  const recentRecords = getRecentAuditRecords(20);
+  const memory = await loadMemory();
+  const recentRecords = await getRecentAuditRecords(20);
 
   if (recentRecords.length === 0) {
     console.log("[dream] No recent audit records — skipping dream cycle");
@@ -66,13 +64,13 @@ export async function runDreamCycle(): Promise<void> {
     );
   });
 
-  const patches = getPromptPatches();
+  const patches = await getPromptPatches();
   const patchContext =
     patches.length > 0
       ? `\n\nCurrent prompt patches:\n${patches.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
       : "\n\nNo active prompt patches.";
 
-  const previousDreams = getDreamInsights(memory);
+  const previousDreams = await getDreamInsights(memory);
   const dreamHistory =
     previousDreams.length > 0
       ? `\n\nPrevious consolidated insights:\n${previousDreams.map((d, i) => `${i + 1}. ${d}`).join("\n")}`
@@ -154,7 +152,7 @@ Do not include any text outside the JSON array.`;
     // Prune prompt patches that contradict dream insights
     _pruneContradictoryPatches(memory, insights);
 
-    saveMemory(memory);
+    await saveMemory(memory);
 
     console.log(
       "[dream] Dream cycle complete — stored %d insights, %d total dream entries",
@@ -171,8 +169,8 @@ Do not include any text outside the JSON array.`;
  * Get the latest dream insights for injection into prompts.
  * Returns an array of insight strings from the most recent dream.
  */
-export function getDreamInsights(memory?: MemoryData): string[] {
-  const mem = memory || loadMemory();
+export async function getDreamInsights(memory?: MemoryData): Promise<string[]> {
+  const mem = memory || await loadMemory();
   if (!mem.dreamLog || mem.dreamLog.length === 0) return [];
 
   // Return insights from the most recent dream

@@ -84,9 +84,9 @@ type AuditType = "architecture" | "ux-revenue" | "growth";
 
 const AUDIT_TYPES: AuditType[] = ["architecture", "ux-revenue", "growth"];
 
-function pickAuditType(): AuditType {
+async function pickAuditType(): Promise<AuditType> {
   // Rotate through types based on recent history
-  const recent = getRecentAuditRecords(3);
+  const recent = await getRecentAuditRecords(3);
   const recentTypes = recent.map((r) => r.auditType);
 
   for (const t of AUDIT_TYPES) {
@@ -96,9 +96,9 @@ function pickAuditType(): AuditType {
   return AUDIT_TYPES[Math.floor(Math.random() * AUDIT_TYPES.length)];
 }
 
-function getSystemPrompt(auditType: AuditType): string {
-  const patches = getPromptPatches();
-  const dreams = getDreamInsights();
+async function getSystemPrompt(auditType: AuditType): Promise<string> {
+  const patches = await getPromptPatches();
+  const dreams = await getDreamInsights();
   switch (auditType) {
     case "architecture":
       return ARCHITECTURE_SYSTEM_PROMPT(patches, dreams);
@@ -155,7 +155,7 @@ async function runAudit(
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 8192,
-    system: getSystemPrompt(auditType),
+    system: await getSystemPrompt(auditType),
     messages: [{ role: "user", content: getUserMessage(auditType, context) }],
   });
 
@@ -239,12 +239,12 @@ function formatPostContent(
 // ---------------------------------------------------------------------------
 
 async function updateRecentEngagement(): Promise<void> {
-  const records = getRecentAuditRecords(10);
+  const records = await getRecentAuditRecords(10);
   for (const record of records) {
     if (!record.postId) continue;
     try {
       const post = await getPost(record.postId);
-      updateEngagement(
+      await updateEngagement(
         record.postId,
         post.upvotes ?? 0,
         post.downvotes ?? 0,
@@ -260,7 +260,7 @@ async function updateRecentEngagement(): Promise<void> {
 }
 
 async function maybeGeneratePromptPatch(): Promise<void> {
-  const memory = loadMemory();
+  const memory = await loadMemory();
   const records = memory.auditRecords.slice(-20);
 
   // Count negative signals: posts with more downvotes than upvotes,
@@ -328,7 +328,7 @@ async function maybeGeneratePromptPatch(): Promise<void> {
       commentTexts
     );
 
-    addPromptPatch(patch, patchReason, totalSignals);
+    await addPromptPatch(patch, patchReason, totalSignals);
     console.log(`[cron] Added prompt patch: ${patch.slice(0, 100)}...`);
   }
 }
@@ -399,7 +399,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     );
 
     // Filter out already-audited URLs
-    const memory = loadMemory();
+    const memory = await loadMemory();
     const auditedUrls = new Set(memory.auditRecords.map((r) => r.url));
     const newUrls = candidateUrls.filter((u) => !auditedUrls.has(u));
 
@@ -410,10 +410,10 @@ export async function GET(req: Request): Promise<NextResponse> {
       await maybeGeneratePromptPatch();
 
       // Track cycle count even when no URLs to audit
-      const noUrlMemory = loadMemory();
+      const noUrlMemory = await loadMemory();
       const noUrlCycle = (noUrlMemory.cycleCount || 0) + 1;
       noUrlMemory.cycleCount = noUrlCycle;
-      saveMemory(noUrlMemory);
+      await saveMemory(noUrlMemory);
 
       let dreamed = false;
       if (noUrlCycle % 5 === 0) {
@@ -436,7 +436,7 @@ export async function GET(req: Request): Promise<NextResponse> {
 
     // 2. Pick a target URL (random from candidates)
     const targetUrl = newUrls[Math.floor(Math.random() * newUrls.length)];
-    const auditType = pickAuditType();
+    const auditType = await pickAuditType();
     console.log(`[cron] Auditing ${targetUrl} (${auditType})`);
 
     // 3. Run audit
@@ -456,7 +456,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     console.log(`[cron] Posted to Moltbook: ${post.id}`);
 
     // 5. Save to memory
-    addAuditRecord({
+    await addAuditRecord({
       postId: post.id,
       url: targetUrl,
       auditType,
@@ -473,10 +473,10 @@ export async function GET(req: Request): Promise<NextResponse> {
     await maybeGeneratePromptPatch();
 
     // 8. Track cycle count and trigger dream cycle every 5th cycle
-    const currentMemory = loadMemory();
+    const currentMemory = await loadMemory();
     const cycleCount = (currentMemory.cycleCount || 0) + 1;
     currentMemory.cycleCount = cycleCount;
-    saveMemory(currentMemory);
+    await saveMemory(currentMemory);
 
     let dreamed = false;
     if (cycleCount % 5 === 0) {

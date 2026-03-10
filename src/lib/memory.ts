@@ -1,62 +1,58 @@
 /**
- * Simple JSON file-based memory for the Moltbook self-improvement loop.
+ * Postgres-backed memory for the Moltbook self-improvement loop.
  *
- * Stores audit results, engagement metrics, prompt patches, and
- * discovery preferences. File persisted at data/memory.json.
+ * Stores audit results, engagement metrics, prompt patches, dream entries,
+ * and discovery preferences in a single JSONB row in Vercel Postgres.
+ *
+ * Falls back to file-based storage (memory-file.ts) when POSTGRES_URL
+ * is not configured (local development).
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
-import { join } from "path";
+import { sql } from "@vercel/postgres";
+import * as fileMemory from "./memory-file";
 
-const DATA_DIR = join(process.cwd(), "data");
-const MEMORY_FILE = join(DATA_DIR, "memory.json");
+// ---------------------------------------------------------------------------
+// Re-export types (unchanged)
+// ---------------------------------------------------------------------------
+
+export type {
+  AuditRecord,
+  PromptPatch,
+  DiscoveryPreferences,
+  DreamEntry,
+  MemoryData,
+} from "./memory-file";
+
+import type { MemoryData, AuditRecord, DiscoveryPreferences } from "./memory-file";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const MAX_PROMPT_PATCHES = 20;
 const MIN_SIGNAL_COUNT = 5;
 const HUMAN_REVIEW_THRESHOLD = 15;
 
-export interface AuditRecord {
-  postId: string;
-  url: string;
-  auditType: "architecture" | "ux-revenue" | "growth";
-  overallScore: number;
-  summary: string;
-  createdAt: string;
-  engagement: {
-    upvotes: number;
-    downvotes: number;
-    comments: number;
-  };
-}
+// ---------------------------------------------------------------------------
+// Postgres detection & schema init
+// ---------------------------------------------------------------------------
 
-export interface PromptPatch {
-  id: string;
-  patch: string;
-  reason: string;
-  signalCount: number;
-  createdAt: string;
-  humanReviewed: boolean;
-}
+const usePostgres = !!(
+  process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING
+);
 
-export interface DiscoveryPreferences {
-  preferredIndustries: string[];
-  preferredDomains: string[];
-  avoidPatterns: string[];
-}
+let schemaInitialized = false;
 
-export interface DreamEntry {
-  id: string;
-  insights: string[];
-  createdAt: string;
-}
-
-export interface MemoryData {
-  auditRecords: AuditRecord[];
-  promptPatches: PromptPatch[];
-  discoveryPreferences: DiscoveryPreferences;
-  dreamLog?: DreamEntry[];
-  cycleCount?: number;
-  lastUpdated: string;
+async function ensureSchema(): Promise<void> {
+  if (schemaInitialized) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS moltbook_memory (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      data JSONB NOT NULL DEFAULT '{}',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  schemaInitialized = true;
 }
 
 function defaultMemory(): MemoryData {
@@ -72,67 +68,69 @@ function defaultMemory(): MemoryData {
   };
 }
 
-function ensureDataDir(): void {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
+// ---------------------------------------------------------------------------
+// Core load / save
+// ---------------------------------------------------------------------------
+
+export async function loadMemory(): Promise<MemoryData> {
+  if (!usePostgres) return fileMemory.loadMemory();
+  await ensureSchema();
+  const { rows } = await sql`SELECT data FROM moltbook_memory WHERE id = 1`;
+  if (rows.length === 0) return defaultMemory();
+  return rows[0].data as MemoryData;
 }
 
-export function loadMemory(): MemoryData {
-  ensureDataDir();
-  if (!existsSync(MEMORY_FILE)) {
-    return defaultMemory();
+export async function saveMemory(memory: MemoryData): Promise<void> {
+  if (!usePostgres) {
+    fileMemory.saveMemory(memory);
+    return;
   }
-  try {
-    const raw = readFileSync(MEMORY_FILE, "utf-8");
-    return JSON.parse(raw) as MemoryData;
-  } catch (e) {
-    console.error("[memory] Failed to load memory file, using defaults:", e);
-    return defaultMemory();
-  }
-}
-
-export function saveMemory(memory: MemoryData): void {
-  ensureDataDir();
+  await ensureSchema();
   memory.lastUpdated = new Date().toISOString();
-  writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2), "utf-8");
+  const data = JSON.stringify(memory);
+  await sql`
+    INSERT INTO moltbook_memory (id, data, updated_at)
+    VALUES (1, ${data}::jsonb, now())
+    ON CONFLICT (id) DO UPDATE SET data = ${data}::jsonb, updated_at = now()
+  `;
 }
 
-export function addAuditRecord(record: AuditRecord): void {
-  const memory = loadMemory();
+// ---------------------------------------------------------------------------
+// Audit records
+// ---------------------------------------------------------------------------
+
+export async function addAuditRecord(record: AuditRecord): Promise<void> {
+  const memory = await loadMemory();
   memory.auditRecords.push(record);
-  // Keep last 200 records
   if (memory.auditRecords.length > 200) {
     memory.auditRecords = memory.auditRecords.slice(-200);
   }
-  saveMemory(memory);
+  await saveMemory(memory);
 }
 
-export function updateEngagement(
+export async function updateEngagement(
   postId: string,
   upvotes: number,
   downvotes: number,
   comments: number
-): void {
-  const memory = loadMemory();
+): Promise<void> {
+  const memory = await loadMemory();
   const record = memory.auditRecords.find((r) => r.postId === postId);
   if (record) {
     record.engagement = { upvotes, downvotes, comments };
-    saveMemory(memory);
+    await saveMemory(memory);
   }
 }
 
-/**
- * Add a prompt patch. Only accepts patches with signalCount >= 5.
- * Oldest patches are rotated out when max (20) is reached.
- * Patches are append-only; a human review flag is set when count
- * exceeds the threshold.
- */
-export function addPromptPatch(
+// ---------------------------------------------------------------------------
+// Prompt patches
+// ---------------------------------------------------------------------------
+
+export async function addPromptPatch(
   patch: string,
   reason: string,
   signalCount: number
-): boolean {
+): Promise<boolean> {
   if (signalCount < MIN_SIGNAL_COUNT) {
     console.warn(
       `[memory] Rejected prompt patch: signalCount ${signalCount} < ${MIN_SIGNAL_COUNT}`
@@ -140,11 +138,10 @@ export function addPromptPatch(
     return false;
   }
 
-  const memory = loadMemory();
-
+  const memory = await loadMemory();
   const needsReview = memory.promptPatches.length >= HUMAN_REVIEW_THRESHOLD;
 
-  const entry: PromptPatch = {
+  const entry = {
     id: `patch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     patch,
     reason,
@@ -155,7 +152,6 @@ export function addPromptPatch(
 
   memory.promptPatches.push(entry);
 
-  // Rotate oldest if over max
   if (memory.promptPatches.length > MAX_PROMPT_PATCHES) {
     const removed = memory.promptPatches.shift();
     console.warn(`[memory] Rotated out oldest prompt patch: ${removed?.id}`);
@@ -163,38 +159,43 @@ export function addPromptPatch(
 
   if (needsReview) {
     console.warn(
-      `[memory] HUMAN REVIEW NEEDED: ${memory.promptPatches.length} prompt patches accumulated. ` +
-        `Review data/memory.json to verify patch quality.`
+      `[memory] HUMAN REVIEW NEEDED: ${memory.promptPatches.length} prompt patches accumulated.`
     );
   }
 
-  saveMemory(memory);
+  await saveMemory(memory);
   return true;
 }
 
-/**
- * Returns accumulated prompt patches as an array of strings
- * for injection into system prompts.
- */
-export function getPromptPatches(): string[] {
-  const memory = loadMemory();
+export async function getPromptPatches(): Promise<string[]> {
+  const memory = await loadMemory();
   return memory.promptPatches.map((p) => p.patch);
 }
 
-export function getRecentAuditRecords(limit: number = 10): AuditRecord[] {
-  const memory = loadMemory();
+// ---------------------------------------------------------------------------
+// Audit record queries
+// ---------------------------------------------------------------------------
+
+export async function getRecentAuditRecords(
+  limit: number = 10
+): Promise<AuditRecord[]> {
+  const memory = await loadMemory();
   return memory.auditRecords.slice(-limit);
 }
 
-export function getDiscoveryPreferences(): DiscoveryPreferences {
-  const memory = loadMemory();
+// ---------------------------------------------------------------------------
+// Discovery preferences
+// ---------------------------------------------------------------------------
+
+export async function getDiscoveryPreferences(): Promise<DiscoveryPreferences> {
+  const memory = await loadMemory();
   return memory.discoveryPreferences;
 }
 
-export function updateDiscoveryPreferences(
+export async function updateDiscoveryPreferences(
   prefs: Partial<DiscoveryPreferences>
-): void {
-  const memory = loadMemory();
+): Promise<void> {
+  const memory = await loadMemory();
   Object.assign(memory.discoveryPreferences, prefs);
-  saveMemory(memory);
+  await saveMemory(memory);
 }
