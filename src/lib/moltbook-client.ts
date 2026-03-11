@@ -222,10 +222,46 @@ export interface MoltbookComment {
   content: string;
   author?: { id: string; name: string };
   created_at?: string;
+  is_spam?: boolean;
 }
 
 export interface MoltbookFeed {
+  success?: boolean;
   posts: MoltbookPost[];
+}
+
+export interface MoltbookHome {
+  activity_on_your_posts?: Array<{
+    id?: string;
+    content?: string;
+    [key: string]: unknown;
+  }>;
+  notifications?: unknown[];
+  dms?: unknown[];
+  [key: string]: unknown;
+}
+
+export interface MoltbookCommentsResponse {
+  comments: MoltbookComment[];
+  [key: string]: unknown;
+}
+
+export interface MoltbookNotificationsResponse {
+  notifications?: Array<{
+    id?: string;
+    type?: string;
+    content?: string;
+    message?: string;
+    [key: string]: unknown;
+  }>;
+  data?: Array<{
+    id?: string;
+    type?: string;
+    content?: string;
+    message?: string;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
 }
 
 export interface MoltbookAgent {
@@ -319,10 +355,54 @@ export async function voteOnPost(
 }
 
 /**
- * Read the Moltbook home feed.
+ * Browse the Moltbook feed (all submolts).
+ * GET /feed returns {"success": true, "posts": [...]}.
  */
-export async function getFeed(): Promise<MoltbookFeed> {
-  return apiRequest<MoltbookFeed>("GET", "/home");
+export async function getFeed(
+  page: number = 1,
+  limit: number = 20
+): Promise<MoltbookFeed> {
+  return apiRequest<MoltbookFeed>(
+    "GET",
+    `/feed?page=${page}&limit=${limit}`
+  );
+}
+
+/**
+ * Get account metadata from GET /home.
+ * Returns activity_on_your_posts, notifications, DMs, etc.
+ * NOTE: This is NOT the feed — use getFeed() for browsing posts.
+ */
+export async function getHome(): Promise<MoltbookHome> {
+  return apiRequest<MoltbookHome>("GET", "/home");
+}
+
+/**
+ * Get comments on a specific post.
+ * GET /posts/:id/comments?sort=best&limit=20
+ */
+export async function getComments(
+  postId: string,
+  sort: string = "best",
+  limit: number = 20
+): Promise<MoltbookCommentsResponse> {
+  return apiRequest<MoltbookCommentsResponse>(
+    "GET",
+    `/posts/${postId}/comments?sort=${sort}&limit=${limit}`
+  );
+}
+
+/**
+ * Get notifications (replies, votes, etc.).
+ * GET /notifications
+ */
+export async function getNotifications(
+  limit: number = 20
+): Promise<MoltbookNotificationsResponse> {
+  return apiRequest<MoltbookNotificationsResponse>(
+    "GET",
+    `/notifications?limit=${limit}`
+  );
 }
 
 /**
@@ -337,4 +417,37 @@ export async function getAgentInfo(): Promise<MoltbookAgent> {
  */
 export async function getPost(postId: string): Promise<MoltbookPost> {
   return apiRequest<MoltbookPost>("GET", `/posts/${postId}`);
+}
+
+/**
+ * Heartbeat check — verifies API is reachable and key is valid.
+ * Uses GET /agents/me and explicitly detects 401 (invalid key).
+ */
+export async function heartbeat(): Promise<boolean> {
+  const key = process.env.MOLTBOOK_API_KEY;
+  if (!key) {
+    console.error("[moltbook] MOLTBOOK_API_KEY not configured");
+    return false;
+  }
+
+  try {
+    const url = `${BASE_URL}/agents/me`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (res.status === 401) {
+      console.error("[moltbook] Heartbeat: API key is invalid (401)");
+      return false;
+    }
+
+    return res.ok;
+  } catch (e) {
+    console.warn("[moltbook] Heartbeat failed:", e);
+    return false;
+  }
 }

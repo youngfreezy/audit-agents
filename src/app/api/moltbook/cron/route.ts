@@ -23,9 +23,14 @@ import {
 import { sanitize } from "@/lib/sanitize";
 import {
   getFeed,
+  getHome,
+  getComments,
+  getNotifications,
   createPost,
   getPost,
+  heartbeat,
   type MoltbookPost,
+  type MoltbookComment,
 } from "@/lib/moltbook-client";
 import {
   loadMemory,
@@ -44,6 +49,23 @@ import type {
 } from "@/lib/types";
 
 export const maxDuration = 120;
+
+// ---------------------------------------------------------------------------
+// Persistent post ID tracking (survives deploys via Postgres/memory)
+// ---------------------------------------------------------------------------
+
+async function loadOurPostIds(): Promise<string[]> {
+  try {
+    const memory = await loadMemory();
+    // Store post IDs in the memory data alongside audit records
+    return (memory.auditRecords || [])
+      .map((r) => r.postId)
+      .filter((id): id is string => !!id);
+  } catch (e) {
+    console.warn("[cron] Failed to load our post IDs:", e);
+    return [];
+  }
+}
 
 // ---------------------------------------------------------------------------
 // URL extraction from feed content
@@ -230,8 +252,63 @@ function formatPostContent(
     }
   }
 
+  // Append a question asking the community for help/feedback
+  const helpQuestion = generateHelpQuestion(auditType, score, risks, improvements);
+  if (helpQuestion) {
+    parts.push("", helpQuestion);
+  }
+
   // Truncate to reasonable post length
   return parts.join("\n").slice(0, 2000);
+}
+
+/**
+ * Generate a community help request based on current audit findings.
+ * Appended to performance posts to invite discussion.
+ */
+function generateHelpQuestion(
+  auditType: AuditType,
+  score: number,
+  risks: Array<{ title: string; severity: string }>,
+  improvements: string[]
+): string {
+  const questions: string[] = [];
+
+  // Ask about specific high-severity risks
+  const criticalRisks = risks.filter(
+    (r) => r.severity?.toLowerCase() === "critical" || r.severity?.toLowerCase() === "high"
+  );
+  if (criticalRisks.length > 0) {
+    const firstRisk = criticalRisks[0].title;
+    questions.push(
+      `Has anyone dealt with "${firstRisk}" in production? What mitigation strategies worked?`
+    );
+  }
+
+  // Ask about improvements that seem hard to implement
+  if (improvements.length > 0 && score < 50) {
+    questions.push(
+      `This scored ${score}/100 — what's the highest-impact fix you'd prioritize first?`
+    );
+  }
+
+  // Ask about audit methodology
+  if (auditType === "architecture" && score > 70) {
+    questions.push(
+      `Solid architecture here. Any aspects of the stack you'd audit differently?`
+    );
+  } else if (auditType === "ux-revenue" && score < 40) {
+    questions.push(
+      `UX conversion looks rough. Anyone have examples of similar products that turned it around?`
+    );
+  } else if (auditType === "growth") {
+    questions.push(
+      `What growth channels have you seen work best for early-stage products like this?`
+    );
+  }
+
+  // Return the first question (keep it focused)
+  return questions.length > 0 ? questions[0] : "";
 }
 
 // ---------------------------------------------------------------------------
@@ -240,15 +317,48 @@ function formatPostContent(
 
 async function updateRecentEngagement(): Promise<void> {
   const records = await getRecentAuditRecords(10);
+  const ourPostIds = await loadOurPostIds();
+
+  // Strategy 1: Use /home activity_on_your_posts for quick overview
+  try {
+    const home = await getHome();
+    const activity = home.activity_on_your_posts || [];
+    if (activity.length > 0) {
+      console.log(`[cron] Home activity: ${activity.length} items on our posts`);
+    }
+  } catch (e) {
+    console.debug("[cron] Failed to check /home activity:", e);
+  }
+
+  // Strategy 2: Fetch comments on our recent posts, filtering spam
   for (const record of records) {
     if (!record.postId) continue;
     try {
+      // Get post for vote counts
       const post = await getPost(record.postId);
+
+      // Get comments separately via dedicated endpoint, filtering spam
+      let nonSpamCommentCount = 0;
+      try {
+        const commentsData = await getComments(record.postId, "best", 20);
+        const allComments = commentsData.comments || [];
+        const nonSpam = allComments.filter(
+          (c: MoltbookComment) => !c.is_spam
+        );
+        nonSpamCommentCount = nonSpam.length;
+        console.log(
+          `[cron] Post ${record.postId}: ${allComments.length} comments (${nonSpam.length} non-spam)`
+        );
+      } catch {
+        // Fall back to post.comments if /comments endpoint fails
+        nonSpamCommentCount = post.comments?.length ?? 0;
+      }
+
       await updateEngagement(
         record.postId,
         post.upvotes ?? 0,
         post.downvotes ?? 0,
-        post.comments?.length ?? 0
+        nonSpamCommentCount
       );
     } catch (e) {
       console.warn(
@@ -256,6 +366,23 @@ async function updateRecentEngagement(): Promise<void> {
         e
       );
     }
+  }
+
+  // Strategy 3: Check notifications for replies we may have missed
+  try {
+    const notifs = await getNotifications(20);
+    const notifList = notifs.notifications || notifs.data || [];
+    const replyNotifs = notifList.filter(
+      (n) =>
+        n.type &&
+        (n.type.toLowerCase().includes("comment") ||
+          n.type.toLowerCase().includes("reply"))
+    );
+    if (replyNotifs.length > 0) {
+      console.log(`[cron] Found ${replyNotifs.length} reply notifications`);
+    }
+  } catch (e) {
+    console.debug("[cron] Failed to check notifications:", e);
   }
 }
 
@@ -295,19 +422,31 @@ async function maybeGeneratePromptPatch(): Promise<void> {
 
   // If negative signals dominate, generate a calibration patch
   if (negativeSignals > positiveSignals) {
-    // Fetch actual comment content for analysis
+    // Fetch actual comment content for analysis (filtering spam)
     const commentTexts: string[] = [];
     for (const r of records.slice(-5)) {
       if (!r.postId || r.engagement.comments === 0) continue;
       try {
-        const post = await getPost(r.postId);
-        for (const c of post.comments || []) {
+        const commentsData = await getComments(r.postId, "best", 20);
+        const nonSpam = (commentsData.comments || []).filter(
+          (c: MoltbookComment) => !c.is_spam
+        );
+        for (const c of nonSpam) {
           // SECURITY: sanitize all external content
           const clean = sanitize(c.content || "", { maxLength: 200 });
           if (clean) commentTexts.push(clean);
         }
       } catch {
-        // skip
+        // Fall back to post.comments if /comments endpoint fails
+        try {
+          const post = await getPost(r.postId);
+          for (const c of post.comments || []) {
+            const clean = sanitize(c.content || "", { maxLength: 200 });
+            if (clean) commentTexts.push(clean);
+          }
+        } catch {
+          // skip
+        }
       }
     }
 
@@ -390,6 +529,18 @@ export async function GET(req: Request): Promise<NextResponse> {
   }
 
   try {
+    // 0. Heartbeat — verify API is reachable and key is valid
+    console.log("[cron] Running heartbeat check...");
+    const alive = await heartbeat();
+    if (!alive) {
+      console.error("[cron] Moltbook heartbeat FAILED — skipping this cycle");
+      return NextResponse.json(
+        { status: "skipped", reason: "heartbeat_failed" },
+        { status: 503 }
+      );
+    }
+    console.log("[cron] Heartbeat OK");
+
     // 1. Read feed for URLs to audit
     console.log("[cron] Fetching Moltbook feed...");
     const feed = await getFeed();
