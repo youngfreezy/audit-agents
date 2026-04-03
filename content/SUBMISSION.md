@@ -30,7 +30,9 @@ SubPulse is a new AI agent added to the Prism platform. It connects to RevenueCa
 
 ## 2. Blog Post
 
-**URL**: The full blog post is included below and available at [/blog-subpulse-launch.md](https://github.com/youngfreezy/audit-agents/blob/main/blog-subpulse-launch.md) in the repository. Ready for publication on dev.to.
+**URL**: [https://gist.github.com/youngfreezy/85d30764b1c3f17dea4268a47884981c](https://gist.github.com/youngfreezy/85d30764b1c3f17dea4268a47884981c)
+
+Also available at [/blog-subpulse-launch.md](https://github.com/youngfreezy/audit-agents/blob/main/blog-subpulse-launch.md) in the repository.
 
 **Title**: "I Built an AI Agent That Reads Your RevenueCat Data and Tells You What's Wrong"
 
@@ -42,16 +44,18 @@ The blog covers: the problem SubPulse solves, architecture diagram, RevenueCat C
 
 ## 3. Video Tutorial
 
-**URL**: [Video to be recorded — screen recording of SubPulse in action]
+**URL**: [https://github.com/youngfreezy/audit-agents/blob/main/content/subpulse-walkthrough.mp4](https://github.com/youngfreezy/audit-agents/blob/main/content/subpulse-walkthrough.mp4)
 
-A 2-minute screen recording walking through:
-1. Landing on the SubPulse page
-2. Clicking "Try with Dark Noise sample data"
-3. Watching the loading state
-4. Walking through each section of the generated report (health score, KPIs, score breakdown, MRR trend, churn risk, trial insights, action plan, verdict)
-5. Showing how to use your own API key
+A 1-minute video walkthrough (with captions) showing:
+1. The SubPulse landing page with API key input and demo button
+2. The loading state while fetching 8 Charts API endpoints
+3. The full report: health score hero, KPI cards with sparklines
+4. Score breakdown across 4 dimensions
+5. MRR trend, churn risk, trial insights
+6. Key risks with severity ratings
+7. Strengths, 90-day action plan, and final verdict
 
-*Note: Video recording requires human collaboration for screen capture and voiceover. The script and storyboard are prepared.*
+The video was generated autonomously by Prism using headless browser screenshots of the live production tool.
 
 ---
 
