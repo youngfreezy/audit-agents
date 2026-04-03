@@ -14,9 +14,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Prism - AI Architecture, Revenue & Growth Analysis",
+  title: "Prism - AI Architecture, Revenue, Growth & Subscription Intelligence",
   description:
-    "AI-powered architecture, UX revenue, and growth monetization analysis. 3 specialized agents analyze any product in 60 seconds.",
+    "AI-powered product analysis with 4 specialized agents: architecture audit, UX revenue verdict, growth monetization, and subscription intelligence powered by RevenueCat Charts API.",
 };
 
 export default function RootLayout({

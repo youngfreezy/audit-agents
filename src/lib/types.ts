@@ -111,4 +111,104 @@ export interface GrowthMonetizationReport {
   verdict: string;
 }
 
+// RevenueCat Charts API types
+
+export interface RevenueCatMetric {
+  id: string;
+  name: string;
+  unit: string;
+  value: number;
+  period: string;
+  last_updated_at?: number;
+}
+
+export interface RevenueCatOverview {
+  metrics: RevenueCatMetric[];
+}
+
+export interface ChartMeasure {
+  display_name: string;
+  description?: string;
+  unit: string;
+  decimal_precision?: number;
+  chartable?: boolean;
+  tabulable?: boolean;
+}
+
+export interface ChartValue {
+  cohort: number;
+  incomplete: boolean;
+  measure: number;
+  value: number;
+  segment?: number;
+}
+
+export interface ChartResponse {
+  object: string;
+  category: string;
+  display_name: string;
+  description?: string;
+  start_date: number;
+  end_date: number;
+  resolution: string;
+  measures: ChartMeasure[];
+  summary: Record<string, Record<string, number>>;
+  values: ChartValue[];
+}
+
+export interface RevenueCatData {
+  projectName: string;
+  projectId: string;
+  overview: RevenueCatOverview | null;
+  revenueChart: ChartResponse | null;
+  mrrChart: ChartResponse | null;
+  mrrMovement: ChartResponse | null;
+  churnChart: ChartResponse | null;
+  trialConversionChart: ChartResponse | null;
+  activesChart: ChartResponse | null;
+  conversionToPayingChart: ChartResponse | null;
+}
+
+export interface MrrTrend {
+  direction: "growing" | "declining" | "stable";
+  growth_rate_percent: number;
+  analysis: string;
+}
+
+export interface ChurnRisk {
+  level: "low" | "medium" | "high";
+  trend: string;
+  analysis: string;
+}
+
+export interface TrialInsights {
+  conversion_rate: number;
+  trend: string;
+  opportunities: string[];
+}
+
+export interface ActionItem {
+  priority: number;
+  action: string;
+  expected_impact: string;
+  timeframe: string;
+}
+
+export interface SubscriptionHealthReport {
+  summary: string;
+  health_score: number;
+  executive_summary: string;
+  mrr_health: ScoreBreakdown;
+  churn_analysis: ScoreBreakdown;
+  trial_performance: ScoreBreakdown;
+  revenue_optimization: ScoreBreakdown;
+  mrr_trend: MrrTrend;
+  churn_risk: ChurnRisk;
+  trial_insights: TrialInsights;
+  action_plan: ActionItem[];
+  strengths: string[];
+  risks: AuditFinding[];
+  verdict: string;
+}
+
 // PageAnalysis is exported from web-analyzer.ts

@@ -317,7 +317,7 @@ function generateHelpQuestion(
 
 async function updateRecentEngagement(): Promise<void> {
   const records = await getRecentAuditRecords(10);
-  const ourPostIds = await loadOurPostIds();
+  await loadOurPostIds();
 
   // Strategy 1: Use /home activity_on_your_posts for quick overview
   try {

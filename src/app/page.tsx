@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AuditForm } from "@/components/AuditForm";
 import { ArchReport } from "@/components/ArchReport";
 import { UXReport } from "@/components/UXReport";
@@ -132,6 +133,24 @@ export default function Home() {
             AI-powered architecture, revenue, and growth analysis for any
             product. Paste any URL and get a comprehensive analysis in 60 seconds.
           </p>
+        </div>
+
+        {/* SubPulse Banner */}
+        <div className="max-w-2xl mx-auto mb-8">
+          <Link href="/revenue" className="block group">
+            <div className="bg-teal-950/30 border border-teal-800/50 rounded-xl p-4 hover:border-teal-600/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-medium text-teal-400 uppercase tracking-wide">New</span>
+                  <h3 className="text-sm font-bold mt-1">SubPulse &mdash; AI Subscription Intelligence</h3>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Connect your RevenueCat API key and get an AI-powered subscription health report.
+                  </p>
+                </div>
+                <span className="text-teal-400 group-hover:translate-x-1 transition-transform text-lg">&rarr;</span>
+              </div>
+            </div>
+          </Link>
         </div>
 
         {/* Form */}
